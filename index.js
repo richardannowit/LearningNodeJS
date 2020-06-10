@@ -9,6 +9,7 @@ const ejs = require('ejs');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const fileUpload = require('express-fileupload');
+const expressSession = require('express-session');
 
 
 //Controllers
@@ -20,16 +21,25 @@ const registerController = require('./controllers/register');
 const storeRegisterController = require('./controllers/storeRegister');
 const loginController = require('./controllers/login');
 const storeLoginController = require('./controllers/storeLogin');
+const logoutController = require('./controllers/logout');
+
 
 //middlewares
 const validateMiddleWare = require('./middleware/validateMiddleWare');
+const authMiddleWare = require('./middleware/authMiddleWare');
+const redirectMiddleWare = require('./middleware/redirectIfAuth');
 
-
+app.use(expressSession({secret: 'keyboard cat'}));
 app.use(fileUpload());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended:true}));
 app.use(express.static('public'));
 
+global.loggedIn = null;
+app.use('*',(req,res,next)=>{
+	loggedIn = req.session.userId;
+	next();
+})
 
 app.set('view engine','ejs');
 
@@ -43,16 +53,19 @@ app.get('/',homeController);
 
 app.get('/post/:id',detailPostController);
 
-app.get('/posts/new',newPostController);
+app.get('/posts/new',authMiddleWare,newPostController);
 
-app.post('/posts/store',storePostController);
+app.post('/posts/store',authMiddleWare,storePostController);
 
-app.get('/user/login',loginController);
-app.post('/auth/login',storeLoginController);
+app.get('/user/login',redirectMiddleWare,loginController);
+app.post('/auth/login',redirectMiddleWare,storeLoginController);
 
-app.get('/user/register',registerController);
-app.post('/auth/register',storeRegisterController);
+app.get('/user/register',redirectMiddleWare,registerController);
+app.post('/auth/register',redirectMiddleWare,storeRegisterController);
 
+app.get('/user/logout',logoutController);
+
+app.use((req,res)=>res.render('notfound'));
 
 
 app.listen(3000,()=>{
